@@ -19,7 +19,7 @@ library(sqldf)
 
 driver = dbDriver("PostgreSQL")
 
-pw<-"p9dh6uTzd4wB3kpr"
+pw<-"To be filled in"
 
 #create con, store the password in a variable, don't leave it on this script
 con = dbConnect(driver, dbname = "reporting",
