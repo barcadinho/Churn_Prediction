@@ -45,7 +45,7 @@ con = dbConnect(driver, dbname = "reporting",
 
 
 mob_subprd<-dbGetQuery(con,"SELECT user_id,
-       viki_plan_id,
+                       viki_plan_id,
                        start_date,
                        (CASE WHEN (end_date_inactive < end_date_active or end_date_inactive is null) THEN end_date_active ELSE end_date_inactive END) AS end_date
                        FROM (SELECT user_id,
@@ -85,7 +85,7 @@ mob_subprd$end_date<-as.POSIXct(mob_subprd$end_date,"%Y-%m-%d %H:%M:%S",tz='GMT'
 
 #web subscription inclusing both active canceling and canceling because of payment failure
 web_subprd_vs<-dbGetQuery(con,"SELECT user_id,
-       viki_plan_id,
+                          viki_plan_id,
                           viki_subscription_id,
                           vs_start_date AS start_date,
                           MAX(current_end_date) AS end_date,
