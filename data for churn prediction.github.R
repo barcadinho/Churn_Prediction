@@ -28,9 +28,6 @@ con = dbConnect(driver, dbname = "reporting",
                 host = "localhost", port = 5439,
                 user = "product", password = pw)
 
-#******************data untill 20th Aug************************
-
-
 
 #data cleaning
 #I first select a list of users who have not churned up to 15th June
