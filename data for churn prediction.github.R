@@ -171,7 +171,8 @@ user.profile<-user.profile[which(grepl('.*[1|2|3]u',user.profile$user_id)==TRUE)
 
 
 #load subscription period from another RData file
-"***************to be added********************"
+#code can be found in "user.sub.cancel.date.github.R"
+#determine whether the subscriber pays for yearly or monthly plan
 sub_period$yearly.plan<-as.integer(sub_period$viki_plan_id %in% c("19p","12p","22p","24p","25p"))
 
 #get the last subscription period of the subscribers who have not churned up to 15th June
@@ -251,6 +252,8 @@ user_viewing_may2jun<-merge(user_viewing_may2jun,container,by.x="container_id",b
 library(data.table)
 user_viewing_may2jun<-as.data.table(user_viewing_may2jun)
 
+#I firstly aggregate the raw data into session level
+#then aggregate the session level data into monthly level
 user_viewing_may2jun_sessionlevel<-user_viewing_may2jun[,j=list(date_d=max(date_d),
                                                                                    tot.login=sum(as.numeric(login_user!='' & !is.na(login_user))*num_play_minutes),
                                                                                    tot.blockbuster=sum(blockbuster*num_play_minutes),
@@ -315,7 +318,8 @@ user_viewing_7daysbefore<-merge(user_viewing_7daysbefore,container,by.x="contain
 #monthly summary of video viewing behavior
 library(data.table)
 user_viewing_7daysbefore<-as.data.table(user_viewing_7daysbefore)
-
+#I firstly aggregate the raw data into session level
+#then aggregate the session level data into 7-days level
 user_viewing_7daysbefore_sessionlevel<-user_viewing_7daysbefore[,j=list(date_d=max(date_d),
                                                                 tot.login=sum(as.numeric(login_user!='' & !is.na(login_user))*num_play_minutes),
                                                                 tot.blockbuster=sum(blockbuster*num_play_minutes),
@@ -355,34 +359,7 @@ user_viewing_7daysbefore_summary<-user_viewing_7daysbefore_sessionlevel[,j=list(
                                                                         ads.mid.avg.7daysbefore=sum(ads.mid.tot)/(sum(view.time.tot-tot.login)+1),
                                                                         ads.click.avg.7daysbefore=sum(ads.click.tot)/(sum(view.time.tot-tot.login)+1)),by=user_id]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#registration behavior from 15th May to 15th June 
+#registration behavior (comments, reviews, subtitles, segments etc.) from 15th May to 15th June 
 user.regbehave_may2jun<-user.regbehave[which(user.regbehave$date>=as.Date("2016-05-15") & user.regbehave$date<=as.Date("2016-06-15")),]
 #whether the session is within subscription period or not
 user.regbehave_may2jun<-merge(user.regbehave_may2jun,user.0615.randsamp[,c("user_id","start_date","end_date")],by.x = "user_id",by.y = "user_id",all.x = T,all.y = F)
@@ -410,7 +387,7 @@ user.0615.merge<-merge(user.0615.merge,user_viewing_7daysbefore_summary,by.x = "
 user.0615.merge<-merge(user.0615.merge,user.regbehave_may2jun_summary,by.x = "user_id",by.y = "user_id",all.x = T,all.y = F)
 user.0615.merge[, 33:75][is.na(user.0615.merge[, 33:75])] <-0
 
-#change of behavior
+#change of behavior (compare the behavior in last 30 days with the behavior in last 7 days to see if there is any behavioral change)
 user.0615.merge$visit.freq.change<-(user.0615.merge$visit.freq.7daysbefore-user.0615.merge$visit.freq)/(user.0615.merge$visit.freq+0.01)
 user.0615.merge$percent.android.change<-(user.0615.merge$percent.android.7daysbefore-user.0615.merge$percent.android)/(user.0615.merge$percent.android+0.01)
 user.0615.merge$percent.ios.change<-(user.0615.merge$percent.ios.7daysbefore-user.0615.merge$percent.ios)/(user.0615.merge$percent.ios+0.01)
@@ -427,7 +404,7 @@ user.0615.merge$num.videos.blocked.avg.change<-(user.0615.merge$num.videos.block
 user.0615.merge$ads.avg.change<-(user.0615.merge$ads.avg.7daysbefore-user.0615.merge$ads.avg)/(user.0615.merge$ads.avg+0.01)
 user.0615.merge$ads.click.avg.change<-(user.0615.merge$ads.click.avg.7daysbefore-user.0615.merge$ads.click.avg)/(user.0615.merge$ads.click.avg+0.01)
 
-
+#set the country with not so many users as "others"
 user.0615.merge[!(user.0615.merge$last_country %in% c("gb","fr","us","it","kr","mx","sg","ca")),"last_country"]<-"others"
 user.0615.merge$last_country<-as.factor(user.0615.merge$last_country)
 user.0615.merge$last_country<-relevel(user.0615.merge$last_country,ref="others")
@@ -439,21 +416,19 @@ user.0615.merge$start_month<-format(user.0615.merge$start_date,"%Y%m")
 #prediction
 library(caret)
 
-overall<- user.0615.merge[which(as.Date(user.0615.merge$start_date)>as.Date("2016-05-01")),]
-overall$already.churned<-I(format(overall$cancel_date,"%Y%m%d")<='20160615')
-overall[is.na(overall$already.churned),"already.churned"]<-FALSE
+overall<- user.0615.merge
 
+#create an empty data frame to store prediction results 
 pred<-data.frame(`0`=numeric(),`1`=numeric(),user_id=character(),churn.before.0715=numeric())
 
 #10 fold prediction
 for (i in 0:9)
 {
-test = overall[(floor(0.1*i*nrow(overall))+1):floor(0.1*(i+1)*nrow(overall)),]
 training = overall[-((floor(0.1*i*nrow(overall))+1):floor(0.1*(i+1)*nrow(overall))),]
-
+test = overall[(floor(0.1*i*nrow(overall))+1):floor(0.1*(i+1)*nrow(overall)),]
 
 mod_fit = train(as.factor(churn.before.0715)~prev.sub+sub.days+reg.days+visit.freq+percent.ios+percent.android+percent.web+percent.HD+
-                  percent.login+percent.binge.watching+percent.view.exclusive+already.churned*sub.method+
+                  percent.login+percent.binge.watching+percent.view.exclusive+
                   view.time.avg+num.shows.avg+num.videos.blocked.avg+
                   ads.avg+ads.click.avg+avg.reviews+avg.timed_comments+avg.threads+
                   avg.segments+avg.subtitles+avg.disqus_comments+avg.follow+
